@@ -49,7 +49,7 @@ class Decoder(nn.Module):
         return x
     
 class Model(nn.Module):
-    def __init__(self, num_layers, vocab_size, d_model, dff, num_heads, dropout_rate=0.1) -> None:
+    def __init__(self, num_layers, vocab_size, d_model, dff, num_heads, dropout_rate=0.5) -> None:
         super().__init__()
         self.d_model = d_model
         self.encoder = Encoder(d_model)
