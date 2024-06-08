@@ -1,85 +1,53 @@
 import torch
 from torch import nn
-from .attention import CausalAttention, CrossAttention
-from .encoder import Encoder
+import math
 
-class FeedForward(nn.Module):
-    def __init__(self, d_model, dff, dropout_rate) -> None:
+class PositionalEncoding(nn.Module):
+    def __init__(self, dim_model, dropout_p, max_len):
         super().__init__()
-        self.seq = nn.Sequential(
-            nn.Linear(d_model, dff),
-            nn.ReLU(inplace=True),
-            nn.Linear(dff, d_model),
-            nn.Dropout(dropout_rate)
-        )
-        self.layernorm = nn.LayerNorm(normalized_shape=d_model)
+        # Modified version from: https://pytorch.org/tutorials/beginner/transformer_tutorial.html
+        # max_len determines how far the position can have an effect on a token (window)
         
-    def forward(self, x):
-        x = self.layernorm(x + self.seq(x))
-        return x
+        # Info
+        self.dropout = nn.Dropout(dropout_p)
         
-class DecoderLayer(nn.Module):
-    def __init__(self, d_model, dff, num_heads, dropout_rate) -> None:
-        super().__init__()
-        self.causal_attn = CausalAttention(embed_dim=d_model, num_heads=num_heads, dropout=dropout_rate)
-        self.cross_attn = CrossAttention(embed_dim=d_model, num_heads=num_heads, dropout=dropout_rate)
-        self.ffn = FeedForward(d_model=d_model, dff=dff, dropout_rate=dropout_rate)
-    
-    def forward(self, context, x):
-        x = self.causal_attn(x)
-        x = self.cross_attn(context=context, x=x)
-        x = self.ffn(x)
-        self.last_attn_scores = self.cross_attn.last_attn_scores
-        return x
-    
+        # Encoding - From formula
+        pos_encoding = torch.zeros(max_len, dim_model)
+        positions_list = torch.arange(0, max_len, dtype=torch.float).view(-1, 1) # 0, 1, 2, 3, 4, 5
+        division_term = torch.exp(torch.arange(0, dim_model, 2).float() * (-math.log(10000.0)) / dim_model) # 1000^(2i/dim_model)
+        
+        # PE(pos, 2i) = sin(pos/1000^(2i/dim_model))
+        pos_encoding[:, 0::2] = torch.sin(positions_list * division_term)
+        
+        # PE(pos, 2i + 1) = cos(pos/1000^(2i/dim_model))
+        pos_encoding[:, 1::2] = torch.cos(positions_list * division_term)
+        
+        # Saving buffer (same as parameter without gradients needed)
+        pos_encoding = pos_encoding.unsqueeze(0).transpose(0, 1)
+        self.register_buffer("pos_encoding", pos_encoding)
+        
+    def forward(self, token_embedding: torch.tensor) -> torch.tensor:
+        # Residual connection + pos encoding
+        return self.dropout(token_embedding + self.pos_encoding[:token_embedding.size(0), :])
+  
 class Decoder(nn.Module):
-    def __init__(self, num_layers, vocab_size, d_model, dff, num_heads, dropout_rate) -> None:
+    def __init__(self, d_model, vocab_size, num_heads, dropout_rate) -> None:
         super().__init__()
-        self.num_layers = num_layers
-        self.embedding = nn.Embedding(vocab_size, d_model)
-        self.decoder_layers = nn.Sequential(*[DecoderLayer(d_model, dff, num_heads, dropout_rate) for _ in range(num_layers)])
-        self.last_attn_scores = None
-        
-    def forward(self, context, x):
-        context = context
-        x = self.embedding(x)
-        for i in range(self.num_layers):
-            x = self.decoder_layers[i](context=context, x=x)
-        self.last_attn_scores = self.decoder_layers[-1].last_attn_scores
+        self.transformer = nn.Transformer(
+            d_model=d_model,
+            nhead=num_heads,
+            dropout=dropout_rate,
+            batch_first=True
+        )
+        self.d_model = d_model
+        self.embed = nn.Embedding(vocab_size, d_model)
+        self.pos_encoder = PositionalEncoding(dim_model=d_model, dropout_p=dropout_rate, max_len=5000)
+        self.fc = nn.Linear(in_features=d_model, out_features=vocab_size)
+    
+    def forward(self, src: torch.Tensor, tgt: torch.Tensor, tgt_mask=None, tgt_pad_mask=None):
+        tgt = self.embed(tgt) * math.sqrt(self.d_model)
+        tgt = self.pos_encoder(tgt)
+        x = self.transformer(src, tgt, tgt_mask=tgt_mask, tgt_key_padding_mask=tgt_pad_mask)
+        x = self.fc(x)
         return x
     
-class Model(nn.Module):
-    def __init__(self, num_layers, vocab_size, d_model, dff, num_heads, dropout_rate=0.5) -> None:
-        super().__init__()
-        self.d_model = d_model
-        self.encoder = Encoder(d_model)
-        self.decoder = Decoder(
-            num_layers=num_layers,
-            vocab_size=vocab_size,
-            d_model=d_model,
-            dff=dff,
-            num_heads=num_heads,
-            dropout_rate=dropout_rate
-        )
-        self.fc = nn.Linear(in_features=d_model, out_features=vocab_size)
-        
-    def forward(self, imgs, captions):
-        features = self.encoder(imgs)
-        predicted = self.decoder(context=features, x=captions)
-        return self.fc(predicted)
-    
-    def caption_image(self, img, max_length=20):
-        img = img.unsqueeze(0)
-        start_token = torch.tensor([[1]], device=img.device)
-
-        for i in range(max_length):
-            if i == 0:
-                preds = self(img, start_token)
-            else:
-                preds = self(img, start_token)[:, -1, :].unsqueeze(1)
-            pred_idx = preds.argmax(-1)
-            start_token = torch.cat([start_token, pred_idx], dim=1)
-            if pred_idx.item() == 2:
-                break
-            
-        return start_token.cpu().numpy().squeeze()

@@ -1,157 +1,73 @@
-import torch
+from .decoder import Decoder
+from .encoder import Encoder
 from torch import nn
-from torchvision import models
-from .vocabulary import Vocabulary
-import numpy as np
+import torch
 
-
-class EncoderCNN(nn.Module):
-    def __init__(self):
-        super(EncoderCNN, self).__init__()
-        resnet = models.resnet152(weights=models.ResNet152_Weights.DEFAULT)
-        for param in resnet.parameters():
-            param.requires_grad_(False)
-        
-        modules = list(resnet.children())[:-2]
-        self.resnet = nn.Sequential(*modules)
-        
-    def forward(self, images):
-        features: torch.Tensor = self.resnet(images)
-        # [B, feature_maps, size1, size2] -> [B, size, feature_maps]
-        features = features.flatten(start_dim=-2, end_dim=-1).movedim(-1, 1)
-        return features
-
-
-class BahdanauAttention(nn.Module):  
-    def __init__(self, num_features, hidden_dim, output_dim=1):
-        super(BahdanauAttention, self).__init__()
-        self.num_features = num_features
-        self.hidden_dim = hidden_dim
-        self.output_dim = output_dim
-        # fully-connected layer to learn first weight matrix Wa
-        self.W_a = nn.Linear(self.num_features, self.hidden_dim)
-        # fully-connected layer to learn the second weight matrix Ua
-        self.U_a = nn.Linear(self.hidden_dim, self.hidden_dim)
-        # fully-connected layer to produce score (output), learning weight matrix va
-        self.v_a = nn.Linear(self.hidden_dim, self.output_dim)
-                
-    def forward(self, features, decoder_hidden):
-        # add additional dimension to a hidden (required for summation)
-        decoder_hidden = decoder_hidden.unsqueeze(1)
-        atten_1 = self.W_a(features)
-        atten_2 = self.U_a(decoder_hidden)
-        # apply tangent to combine result from 2 fc layers
-        atten_tan = torch.tanh(atten_1+atten_2)
-        atten_score = self.v_a(atten_tan)
-        atten_weight = nn.functional.softmax(atten_score, dim = 1)
-        # first, we will multiply each vector by its softmax score
-        # next, we will sum up this vectors, producing the attention context vector
-        # the size of context equals to a number of feature maps
-        context = torch.sum(atten_weight * features,  dim = 1)
-        atten_weight = atten_weight.squeeze(dim=2)
-        
-        return context, atten_weight
-
-
-class DecoderRNN(nn.Module):
-    def __init__(self, num_features, embedding_dim, hidden_dim, vocab_size, p=0.5):
-
-        super(DecoderRNN, self).__init__()
-        
-        self.num_features = num_features
-        self.embedding_dim = embedding_dim
-        self.hidden_dim = hidden_dim
-        self.vocab_size = vocab_size
-        # scale the inputs to softmax
-        self.sample_temp = 0.5 
-        
-        # embedding layer that turns words into a vector of a specified size
-        self.embeddings = nn.Embedding(vocab_size, embedding_dim)
-        # LSTM will have a single layer of size 512 (512 hidden units)
-        # it will input concatinated context vector (produced by attention) 
-        # and corresponding hidden state of Decoder
-        self.lstm = nn.LSTMCell(embedding_dim + num_features, hidden_dim)
-        # produce the final output
-        self.fc = nn.Linear(hidden_dim, vocab_size)
-        
-        # add attention layer 
-        self.attention = BahdanauAttention(num_features, hidden_dim)
-        # dropout layer
-        self.drop = nn.Dropout(p=p)
-        # add initialization fully-connected layers
-        # initialize hidden state and cell memory using average feature vector 
-        # Source: https://arxiv.org/pdf/1502.03044.pdf
-        self.init_h = nn.Linear(num_features, hidden_dim)
-        self.init_c = nn.Linear(num_features, hidden_dim)
-
-    def forward(self, captions, features):
-        # create embeddings for captions of size (batch, seq_len, embed_dim)
-        embed = self.embeddings(captions)
-        h, c = self.init_hidden(features)
-        seq_len = captions.size(1)
-        feature_size = features.size(1)
-        batch_size = features.size(0)
-        # these tensors will store the outputs from lstm cell and attention weights
-        outputs = torch.zeros(batch_size, seq_len, self.vocab_size).to(embed.device)
-        atten_weights = torch.zeros(batch_size, seq_len, feature_size).to(embed.device)
-        for t in range(seq_len):
-            word_embed = embed[:,t,:]
-            context, atten_weight = self.attention(features, h)
-            # input_concat shape at time step t = (batch, embedding_dim + hidden_dim)
-            input_concat = torch.cat([word_embed, context], 1)
-            h, c = self.lstm(input_concat, (h,c))
-            h = self.drop(h)
-            output = self.fc(h)
-            word_embed = self.embeddings(output.argmax(-1)).squeeze(1) 
-            outputs[:, t, :] = output
-            atten_weights[:, t, :] = atten_weight
-        return outputs, atten_weights
-
-    def init_hidden(self, features):
-        mean_annotations = torch.mean(features, dim = 1)
-        h0 = self.init_h(mean_annotations)
-        c0 = self.init_c(mean_annotations)
-        return h0, c0
-    
-class CNNtoRNN(nn.Module):
-    def __init__(self, embed_size, num_features, hidden_size, vocab_size):
+class Model(nn.Module):
+    def __init__(self, vocab_size, d_model, num_heads, dropout_rate=0.1) -> None:
         super().__init__()
-        self.encoderCNN = EncoderCNN()
-        self.decoderRNN = DecoderRNN(
-            num_features=num_features,
-            embedding_dim=embed_size,
-            hidden_dim=hidden_size,
+        self.d_model = d_model
+        self.encoder = Encoder(d_model)
+        self.decoder = Decoder(
+            d_model=d_model,
+            num_heads=num_heads,
+            dropout_rate=dropout_rate,
             vocab_size=vocab_size
         )
-
-    def forward(self, images, captions):
-        features = self.encoderCNN(images)
-        outputs, atten_weights = self.decoderRNN(
-            captions=captions,
-            features=features
-        )
-        return outputs
+        
+        
+    def forward(self, imgs, captions, tgt_mask):
+        features = self.encoder(imgs)
+        predicted = self.decoder(src=features, tgt=captions, tgt_mask=tgt_mask)
+        return predicted
     
-    def caption_image(self, image, max_sentence=20):
-        sentence = []
-        weights = []
-        features = self.encoderCNN(image.unsqueeze(0))
-        input_word = torch.tensor(1).unsqueeze(0).cuda()
-        h, c = self.decoderRNN.init_hidden(features)
-        while True:
-            embedded_word = self.decoderRNN.embeddings(input_word)
-            context, atten_weight = self.decoderRNN.attention(features, h)
-            # input_concat shape at time step t = (batch, embedding_dim + context size)
-            input_concat = torch.cat([embedded_word, context],  dim = 1)
-            h, c = self.decoderRNN.lstm(input_concat, (h,c))
-            h = self.decoderRNN.drop(h)
-            output = self.decoderRNN.fc(h) 
-            # scoring = torch.nn.functional.log_softmax(output, dim=1)
-            # top_idx = scoring[0].topk(1)[1]
-            sentence.append(output.argmax(-1).item())
-            weights.append(atten_weight)
-            input_word = output.argmax(-1)
+    def predict(model, input_sequence, max_length=20, SOS_token=1, EOS_token=2):
+        """
+        Method from "A detailed guide to Pytorch's nn.Transformer() module.", by
+        Daniel Melchor: https://medium.com/@danielmelchor/a-detailed-guide-to-pytorchs-nn-transformer-module-c80afbc9ffb1
+        """
+        model.eval()
+        device = input_sequence.device
+        input_sequence = input_sequence.unsqueeze(0)
+        y_input = torch.tensor([[SOS_token]], dtype=torch.long, device=device)
 
-            if (len(sentence) >= max_sentence or input_word.item() == 2):
+        num_tokens = len(input_sequence[0])
+
+        for _ in range(max_length):
+            # Get source mask
+            tgt_mask = model.get_tgt_mask(y_input.size(1)).to(device)
+            with torch.no_grad():
+                pred: torch.Tensor = model(input_sequence, y_input, tgt_mask)
+            
+            next_item = pred.topk(1)[1].view(-1)[-1].item() # num with highest probability
+            next_item = torch.tensor([[next_item]], device=device)
+
+            # Concatenate previous input with predicted best word
+            y_input = torch.cat((y_input, next_item), dim=1)
+
+            # Stop if model predicts end of sentence
+            if next_item.view(-1).item() == EOS_token:
                 break
-        return sentence
+
+        return y_input.view(-1).tolist()
+    
+    def get_tgt_mask(self, size) -> torch.tensor:
+        # Generates a squeare matrix where the each row allows one word more to be seen
+        mask = torch.tril(torch.ones(size, size) == 1) # Lower triangular matrix
+        mask = mask.float()
+        mask = mask.masked_fill(mask == 0, float('-inf')) # Convert zeros to -inf
+        mask = mask.masked_fill(mask == 1, float(0.0)) # Convert ones to 0
+        
+        # EX for size=5:
+        # [[0., -inf, -inf, -inf, -inf],
+        #  [0.,   0., -inf, -inf, -inf],
+        #  [0.,   0.,   0., -inf, -inf],
+        #  [0.,   0.,   0.,   0., -inf],
+        #  [0.,   0.,   0.,   0.,   0.]]
+        
+        return mask
+    
+    def create_pad_mask(self, matrix: torch.tensor, pad_token=0) -> torch.tensor:
+        # If matrix = [1,2,3,0,0,0] where pad_token=0, the result mask is
+        # [False, False, False, True, True, True]
+        return (matrix == pad_token)
