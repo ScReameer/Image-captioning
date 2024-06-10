@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
 import torch
 from torchvision import transforms as T
+from sklearn.model_selection import train_test_split
 
 TRANSFORMS = T.Compose([
     T.ToTensor(),
@@ -17,13 +18,22 @@ TRANSFORMS = T.Compose([
 ])
 
 class FlickrDataset(Dataset):
-    def __init__(self, images_path: str, captions_path: str, transforms=TRANSFORMS):
+    def __init__(self, images_path: str, df: pd.DataFrame, vocab: Vocabulary, sample, random_state=42, transforms=TRANSFORMS):
         self.images_path = images_path
-        self.df = pd.read_csv(captions_path)
-        self.imgs = self.df["image"]
-        self.captions = self.df["caption"]
+        self.df = df.copy()
+        self.vocab = vocab
+        
+        train, valid = train_test_split(list(self.df.index), test_size=0.1, random_state=random_state)
+        valid, test = train_test_split(list(valid), train_size=0.5, random_state=random_state)
+        if sample == 'train':
+            self.df = self.df[self.df.index.isin(train)].reset_index()
+        elif sample == 'valid':
+            self.df = self.df[self.df.index.isin(valid)].reset_index()
+        elif sample == 'test':
+            self.df = self.df[self.df.index.isin(test)].reset_index()
+        self.captions = self.df[' comment'].astype(str)
+        self.imgs = self.df['image_name']
         self.transforms = transforms
-        self.vocab = Vocabulary(captions_path)
         
     def __len__(self):
         return len(self.df)

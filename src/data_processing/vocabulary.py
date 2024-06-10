@@ -5,13 +5,12 @@ torchtext.disable_torchtext_deprecation_warning()
 from torchtext.data.utils import get_tokenizer
 
 class Vocabulary:
-    def __init__(self, path: list, freq_threshold=3):
+    def __init__(self, df: pd.DataFrame, freq_threshold=5):
         self.tokenizer = get_tokenizer("basic_english")
         self.idx2word = {0: "<PAD>", 1: "<SOS>", 2: "<EOS>", 3: "<UNK>"}
         self.word2idx = {"<PAD>": 0, "<SOS>": 1, "<EOS>": 2, "<UNK>": 3}
         self.freq_threshold = freq_threshold
-        self.df = pd.read_csv(path)
-        self.df['caption'] = self.df['caption'].apply(self.tokenizer)
+        self.df = df.copy().astype(str).apply(self.tokenizer)
         self._build()
 
     def __len__(self):
@@ -20,7 +19,7 @@ class Vocabulary:
     def _build(self):
         vocab_dict = {}
         start_idx = 4
-        for sentence in self.df['caption'].tolist():
+        for sentence in self.df.tolist():
             for word in sentence:
                 if word not in vocab_dict.keys():
                     vocab_dict[word] = 1

@@ -1,2 +1,4 @@
 *__
 *.pt
+*.ckpt
+lightning_logs

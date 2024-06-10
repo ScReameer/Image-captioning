@@ -41,13 +41,13 @@ class Decoder(nn.Module):
         )
         self.d_model = d_model
         self.embed = nn.Embedding(vocab_size, d_model)
-        self.pos_encoder = PositionalEncoding(dim_model=d_model, dropout_p=dropout_rate, max_len=5000)
+        self.pos_encoder = PositionalEncoding(dim_model=d_model, dropout_p=dropout_rate, max_len=10000)
         self.fc = nn.Linear(in_features=d_model, out_features=vocab_size)
     
     def forward(self, src: torch.Tensor, tgt: torch.Tensor, tgt_mask=None, tgt_pad_mask=None):
         tgt = self.embed(tgt) * math.sqrt(self.d_model)
         tgt = self.pos_encoder(tgt)
-        x = self.transformer(src, tgt, tgt_mask=tgt_mask, tgt_key_padding_mask=tgt_pad_mask)
+        x = self.transformer(src=src, tgt=tgt, tgt_mask=tgt_mask, tgt_key_padding_mask=tgt_pad_mask)
         x = self.fc(x)
         return x
     
