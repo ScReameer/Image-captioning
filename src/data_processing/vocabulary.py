@@ -5,21 +5,29 @@ torchtext.disable_torchtext_deprecation_warning()
 from torchtext.data.utils import get_tokenizer
 
 class Vocabulary:
-    def __init__(self, df: pd.DataFrame, freq_threshold=5):
+    def __init__(self, text: pd.Series, freq_threshold=5):
+        """Creates vocabulary for corpus of text
+
+        Args:
+            `text` (`pd.Series`): column from dataframe with captions
+            `freq_threshold` (`int`, optional): write words in vocabulary if word frequency >= `freq_threshold`, else word becomes `<UNK>`. Defaults to `5`.
+        """
         self.tokenizer = get_tokenizer("basic_english")
         self.idx2word = {0: "<PAD>", 1: "<SOS>", 2: "<EOS>", 3: "<UNK>"}
         self.word2idx = {"<PAD>": 0, "<SOS>": 1, "<EOS>": 2, "<UNK>": 3}
         self.freq_threshold = freq_threshold
-        self.df = df.copy().astype(str).apply(self.tokenizer)
+        self.text: pd.Series = text.copy().astype(str).apply(self.tokenizer)
         self._build()
+        del self.text
 
     def __len__(self):
         return len(self.idx2word)
 
     def _build(self):
+        """Builds vocabulary"""
         vocab_dict = {}
         start_idx = 4
-        for sentence in self.df.tolist():
+        for sentence in self.text.tolist():
             for word in sentence:
                 if word not in vocab_dict.keys():
                     vocab_dict[word] = 1
@@ -30,10 +38,18 @@ class Vocabulary:
                     self.idx2word[start_idx] = word
                     start_idx += 1
     
-    def numericalize(self, text):
+    def numericalize(self, text: str):
+        """Processing raw text into one-hot encoded tensor
+
+        Args:
+            `text` (`str`): raw string of sentence
+
+        Returns:
+            `output` (`torch.Tensor`): one-hot encoded text
+        """
         lower_text = self.tokenizer(text)
         tokenized_text = [self.word2idx['<SOS>']] + [
-            self.word2idx[token] if token in self.word2idx else self.word2idx["<UNK>"]
+            self.word2idx[token] if token in self.word2idx else self.word2idx['<UNK>']
             for token in lower_text
         ] + [self.word2idx['<EOS>']]
         return torch.tensor(tokenized_text)

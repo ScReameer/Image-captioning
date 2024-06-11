@@ -12,17 +12,36 @@ TRANSFORMS = T.Compose([
     T.ToTensor(),
     T.Resize((224, 224)),
     T.Normalize(
+        # ImageNet mean and std
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225]
     )
 ])
 
 class FlickrDataset(Dataset):
-    def __init__(self, images_path: str, df: pd.DataFrame, vocab: Vocabulary, sample, random_state=42, transforms=TRANSFORMS):
+    def __init__(
+        self, 
+        images_path: str,
+        df: pd.DataFrame,
+        vocab: Vocabulary,
+        sample: str, 
+        random_state=42,
+        transforms=TRANSFORMS
+    ):
+        """Creates dataset with images and captions
+
+        Args:
+            `images_path` (`str`): path to images
+            `df` (`pd.DataFrame`): dataframe of `result.csv` from Flickr30k dataset which contains image name with corresponding caption
+            `vocab` (`Vocabulary`): `Vocabulary` class from `src.data_processing.vocabulary`
+            `sample` (`str`): `train`, `valid` or `test` sample
+            `random_state` (`int`, optional): random state to split data. Defaults to `42`.
+            `transforms` (`T.Compose`, optional): transforms/augmentations for images. Defaults to `TRANSFORMS`.
+        """
         self.images_path = images_path
         self.df = df.copy()
         self.vocab = vocab
-        
+        # Train: 0.9, Valid: 0.05, Test: 0.05
         train, valid = train_test_split(list(self.df.index), test_size=0.1, random_state=random_state)
         valid, test = train_test_split(list(valid), train_size=0.5, random_state=random_state)
         if sample == 'train':
