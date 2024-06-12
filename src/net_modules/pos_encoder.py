@@ -4,7 +4,7 @@ import numpy as np
 
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model: int, dropout_p: float, max_len=10000):
-        """_summary_
+        """Positional Encoding for Transformer
 
         Args:
             `d_model` (`int`): text embedding size

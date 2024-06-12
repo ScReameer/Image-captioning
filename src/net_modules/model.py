@@ -12,7 +12,13 @@ T_MAX = 3 # cosine scheduler period
 GAMMA = 0.95 # gamma arg for exponential scheduler 
 
 class Model(L.LightningModule):
-    def __init__(self, vocab: Vocabulary, d_model: int, num_heads: int, dropout_rate=0.1) -> None:
+    def __init__(
+        self, 
+        vocab: Vocabulary,
+        d_model: int, 
+        num_heads: int,
+        dropout_rate=0.1
+    ) -> None:
         """Decoder with Transformer for image captioning task
 
         Args:
