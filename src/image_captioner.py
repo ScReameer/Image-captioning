@@ -11,7 +11,7 @@ class ImageCaptioner:
 
         Args:
             `checkpoint_path` (`str`): path to trained checkpoint of model
-            `captions_path` (`None` or `str`, optional): _description_. Defaults to `None`.
+            `captions_path` (`None` or `str`, optional): path to csv file with captions if vocabulary is not provided. Defaults to `None`.
             `vocab_path` (`str`, optional): path to vocabulary serialized file. Defaults to 'vocab/vocab.joblib'.
 
         Raises:

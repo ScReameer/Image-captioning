@@ -6,9 +6,9 @@ import torch
 from torch import optim
 import lightning as L
 
-LR_START = 1e-4 # start point of learning rate
-LR_MIN = 1e-6 # lower bound of learning rate
-T_MAX = 5 # cosine scheduler period
+LR_START = 5e-5 # start point of learning rate
+LR_MIN = 1e-7 # lower bound of learning rate
+T_MAX = 3 # cosine scheduler period
 GAMMA = 0.95 # gamma arg for exponential scheduler 
 
 class Model(L.LightningModule):
