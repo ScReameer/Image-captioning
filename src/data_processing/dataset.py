@@ -1,9 +1,9 @@
+from .vocabulary import Vocabulary
+
 import os
 import torch
 import cv2 as cv
 import pandas as pd
-
-from .vocabulary import Vocabulary
 from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
 from torchvision import transforms as T

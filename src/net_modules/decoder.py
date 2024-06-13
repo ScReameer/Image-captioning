@@ -1,7 +1,7 @@
+from .pos_encoder import PositionalEncoding
+
 import torch
 import numpy as np
-
-from .pos_encoder import PositionalEncoding
 from torch import nn
 
 class Decoder(nn.Module):

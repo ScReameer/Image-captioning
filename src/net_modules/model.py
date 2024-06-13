@@ -1,9 +1,9 @@
-import torch
-import lightning as L
-
+from ..data_processing.vocabulary import Vocabulary
 from .decoder import Decoder
 from .encoder import Encoder
-from ..data_processing.vocabulary import Vocabulary
+
+import torch
+import lightning as L
 from torch import nn, optim
 
 class Model(L.LightningModule):

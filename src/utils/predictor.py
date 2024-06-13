@@ -1,10 +1,10 @@
+from ..net_modules.model import Model
+
 import torch
 import torchvision.transforms as T
 import numpy as np
 import plotly.io as pio
 import plotly.express as px
-
-from ..net_modules.model import Model
 from torch.utils.data import DataLoader
 from skimage.io import imread
 
