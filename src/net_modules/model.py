@@ -1,15 +1,10 @@
+import torch
+import lightning as L
+
 from .decoder import Decoder
 from .encoder import Encoder
 from ..data_processing.vocabulary import Vocabulary
-from torch import nn
-import torch
-from torch import optim
-import lightning as L
-
-LR_START = 5e-5 # start point of learning rate
-LR_MIN = 1e-7 # lower bound of learning rate
-T_MAX = 3 # cosine scheduler period
-GAMMA = 0.95 # gamma arg for exponential scheduler 
+from torch import nn, optim
 
 class Model(L.LightningModule):
     def __init__(
@@ -17,15 +12,19 @@ class Model(L.LightningModule):
         vocab: Vocabulary,
         d_model: int, 
         num_heads: int,
+        lr_start: float,
+        gamma: float,
         dropout_rate=0.1
     ) -> None:
-        """Decoder with Transformer for image captioning task
+        """Model class for image captioning task
 
         Args:
-            `vocab` (`Vocabulary`): 
+            `vocab` (`Vocabulary`): vocabulary instance of `src.data_processing.vocabulary.Vocabulary`
             `d_model` (`int`): text embedding size and also hidden size of Transformer
             `num_heads` (`int`): heads of Transformer, must be divisible by `d_model` without remainder
-            `dropout_rate` (`float`): droupout regularization
+            `lr_start` (`float`): starting learning rate
+            `gamma` (`float`): gamma for exponential learning rate scheduler
+            `dropout_rate` (`float`, optional): droupout regularization. Defaults to 0.1.
         """
         super().__init__()
         self.vocab = vocab
@@ -35,11 +34,15 @@ class Model(L.LightningModule):
         self.unk_idx = self.vocab.word2idx['<UNK>']
         self.vocab_size = len(self.vocab)
         self.d_model = d_model
+        self.lr_start = lr_start
+        self.gamma = gamma
         self.save_hyperparameters(dict(
             vocab_size=self.vocab_size,
             d_model=d_model,
             num_heads=num_heads,
-            dropout_rate=dropout_rate
+            dropout_rate=dropout_rate,
+            lr_start=self.lr_start,
+            gamma=self.gamma
         ))
         self.encoder = Encoder(d_model)
         self.decoder = Decoder(
@@ -104,13 +107,11 @@ class Model(L.LightningModule):
             return loss
         
     def configure_optimizers(self) -> dict:
-        optimizer = optim.Adam(self.parameters(), lr=LR_START)
-        exp_scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95)
-        cosine_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=T_MAX, eta_min=LR_MIN)
-        scheduler = optim.lr_scheduler.ChainedScheduler([exp_scheduler, cosine_scheduler])
+        optimizer = optim.Adam(self.parameters(), lr=self.lr_start)
+        exp_scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=self.gamma)
         return {
             'optimizer': optimizer,
-            'lr_scheduler': scheduler
+            'lr_scheduler': exp_scheduler
         }
     
     def forward(self, imgs, captions, tgt_mask) -> torch.Tensor:

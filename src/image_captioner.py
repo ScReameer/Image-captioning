@@ -1,6 +1,7 @@
 from .data_processing.vocabulary import Vocabulary
 from .net_modules.model import Model
 from .utils.predictor import Predictor
+
 import os
 import joblib
 import pandas as pd

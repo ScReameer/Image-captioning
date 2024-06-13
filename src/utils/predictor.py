@@ -1,18 +1,21 @@
-from ..net_modules.model import Model
+import torch
+import torchvision.transforms as T
+import numpy as np
 import plotly.io as pio
 import plotly.express as px
+
+from ..net_modules.model import Model
 from torch.utils.data import DataLoader
-import torchvision.transforms as T
 from skimage.io import imread
-import torch
-import numpy as np
 
 pio.renderers.default = 'png'
 pio.templates.default = 'plotly_dark'
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+# ImageNet mean and std
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
+# ResNet input image size
 RESIZE_TO = (224, 224)
 
 class Predictor:

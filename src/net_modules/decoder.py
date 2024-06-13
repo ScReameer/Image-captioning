@@ -1,7 +1,8 @@
 import torch
-from torch import nn
 import numpy as np
+
 from .pos_encoder import PositionalEncoding
+from torch import nn
 
 class Decoder(nn.Module):
     def __init__(self, d_model: int, vocab_size: int, num_heads: int, dropout_rate: float) -> None:

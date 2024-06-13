@@ -1,10 +1,12 @@
 import torch
-from torch import nn
 import numpy as np
+
+from torch import nn
 
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model: int, dropout_p: float, max_len=10000):
         """Positional Encoding for Transformer
+        https://pytorch.org/tutorials/beginner/transformer_tutorial.html
 
         Args:
             `d_model` (`int`): text embedding size
