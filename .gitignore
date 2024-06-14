@@ -2,3 +2,4 @@
 *.pt
 *.ckpt
 lightning_logs
+*.drawio
