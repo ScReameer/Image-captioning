@@ -36,9 +36,11 @@ You can achieve better results by changing hyperparameters, especially `d_model`
 You can also look at [<b>extra_research</b>](extra_research) to see the result of the model with `d_model=128` and `num_heads=4` with same training hyperparameters.
 
 ## How to use
-1. To train model on your own dataset follow this notebook: [<b>training.ipynb</b>](training.ipynb)
+1. <b><i>Python 3.11.x</i></b> with installed [<b>requirements</b>](requirements.txt): `pip install -r requirements.txt`
 
-2. To use pretrained model on any single image from path or *URL* follow this notebook: [<b>inference.ipynb</b>](inference.ipynb)
+2. To train model on your own dataset follow this notebook: [<b>training.ipynb</b>](training.ipynb)
+
+3. To use pretrained model on any single image from path or *URL* follow this notebook: [<b>inference.ipynb</b>](inference.ipynb)
 
 ## Reference
 [<b><i>Flickr30k</i> dataset</b>](https://www.kaggle.com/datasets/hsankesara/flickr-image-dataset)
