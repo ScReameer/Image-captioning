@@ -46,7 +46,7 @@ class Predictor:
         for _ in range(n_samples):
             img, _ = next(iter_loader)
             processed_img = img[0] # [C, H, W]
-            orig_img = self.inv_normalizer(processed_img).cpu().permute(1, 2, 0).numpy()
+            orig_img = self.inv_normalizer(processed_img).cpu().permute(1, 2, 0).numpy() # [H, W, C]
             self._show_img_with_caption(processed_img, orig_img, model)
             
     def caption_single_image(self, path_or_url: str, model: Model) -> None:
@@ -60,10 +60,10 @@ class Predictor:
             `ValueError`: image channels < 3
         """
         orig_img = imread(path_or_url) # [H, W, C]
-        if orig_img.shape[-1] > 3:
-            orig_img = orig_img[..., :-1]
-        elif orig_img.shape[-1] < 3:
+        if 4 < orig_img.shape[-1] < 3:
             raise ValueError(f'Image must have 3 (RGB) or 4 (RGBA) channels, got {orig_img.shape[-1]} channels')
+        elif orig_img.shape[-1] == 4:
+            orig_img = orig_img[..., :-1] # RGBA -> RGB
         processed_img = self.transforms(orig_img) # [C, H, W]
         self._show_img_with_caption(processed_img, orig_img, model)
         

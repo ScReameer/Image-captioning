@@ -47,9 +47,9 @@ class Vocabulary:
         Returns:
             `output` (`torch.Tensor`): one-hot encoded text
         """
-        lower_text = self.tokenizer(text)
-        tokenized_text = [self.word2idx['<SOS>']] + [
+        tokenized_text = self.tokenizer(text)
+        output = [self.word2idx['<SOS>']] + [
             self.word2idx[token] if token in self.word2idx else self.word2idx['<UNK>']
-            for token in lower_text
+            for token in tokenized_text
         ] + [self.word2idx['<EOS>']]
-        return torch.tensor(tokenized_text)
+        return torch.tensor(output)

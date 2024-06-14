@@ -51,6 +51,7 @@ class Model(L.LightningModule):
             dropout_rate=dropout_rate,
             vocab_size=self.vocab_size
         )
+        # Class weights for loss function
         self.class_weights = torch.ones((self.vocab_size, ), device=self.device)
         self.class_weights[self.pad_idx] = torch.tensor(.0)
         self.class_weights[self.unk_idx] = torch.tensor(.0)
@@ -59,15 +60,15 @@ class Model(L.LightningModule):
     def training_step(self, batch, batch_idx) -> torch.Tensor:
         self.train()
         imgs, captions = batch 
-        captions_input = captions[:, :-1]
-        captions_expected = captions[:, 1:]
+        captions_input = captions[:, :-1] # [B, seq-1] without <EOS>
+        captions_expected = captions[:, 1:] # [B, seq-1] without <SOS>
         sequence_length = captions_input.size(1)
-        tgt_mask = self.get_tgt_mask(sequence_length)
-        predicted = self.forward(imgs=imgs, captions=captions_input, tgt_mask=tgt_mask) # [B, seq, vocab_size]
+        tgt_mask = self.get_tgt_mask(sequence_length) # [B, seq_input, seq_input]
+        predicted = self.forward(imgs=imgs, captions=captions_input, tgt_mask=tgt_mask) # [B, seq_output, vocab_size]
         loss: torch.Tensor = nn.functional.cross_entropy(
-            predicted.contiguous().view(-1, self.vocab_size), # [B*seq, vocab_size]
-            captions_expected.contiguous().view(-1), # [B*seq]
-            ignore_index=self.pad_idx,
+            predicted.contiguous().view(-1, self.vocab_size), # [B*seq_output, vocab_size]
+            captions_expected.contiguous().view(-1), # [B*seq_output]
+            ignore_index=self.pad_idx, # Ignore <PAD> token
         )
         self.log('train_CE', loss, prog_bar=True, logger=self.logger, on_epoch=False, on_step=True)
         return loss
@@ -76,15 +77,15 @@ class Model(L.LightningModule):
         self.eval()
         with torch.no_grad():
             imgs, captions = batch 
-            captions_input = captions[:, :-1]
-            captions_expected = captions[:, 1:]
+            captions_input = captions[:, :-1] # [B, seq-1] without <EOS>
+            captions_expected = captions[:, 1:] # [B, seq-1] without <SOS>
             sequence_length = captions_input.size(1)
-            tgt_mask = self.get_tgt_mask(sequence_length)
-            predicted = self.forward(imgs=imgs, captions=captions_input, tgt_mask=tgt_mask)
+            tgt_mask = self.get_tgt_mask(sequence_length) # [B, seq_input, seq_input]
+            predicted = self.forward(imgs=imgs, captions=captions_input, tgt_mask=tgt_mask) # [B, seq_output, vocab_size]
             loss: torch.Tensor = nn.functional.cross_entropy(
-                predicted.contiguous().view(-1, self.vocab_size),
-                captions_expected.contiguous().view(-1),
-                weight=self.class_weights.to(predicted.device),
+                predicted.contiguous().view(-1, self.vocab_size), # [B*seq_output, vocab_size]
+                captions_expected.contiguous().view(-1), # [B*seq_output]
+                weight=self.class_weights.to(predicted.device), # Ignore <PAD> and <UNK> tokens
             )
             self.log('val_CE', loss, prog_bar=True, logger=self.logger, on_epoch=True, on_step=False)
             return loss
@@ -93,15 +94,15 @@ class Model(L.LightningModule):
         self.eval()
         with torch.no_grad():
             imgs, captions = batch 
-            captions_input = captions[:, :-1] # [B, seq-1]
-            captions_expected = captions[:, 1:] # [B, seq-1]
+            captions_input = captions[:, :-1] # [B, seq-1] without <EOS>
+            captions_expected = captions[:, 1:] # [B, seq-1] without <SOS>
             sequence_length = captions_input.size(1)
-            tgt_mask = self.get_tgt_mask(sequence_length)
-            predicted = self.forward(imgs=imgs, captions=captions_input, tgt_mask=tgt_mask)
+            tgt_mask = self.get_tgt_mask(sequence_length) # [B, seq_input, seq_input]
+            predicted = self.forward(imgs=imgs, captions=captions_input, tgt_mask=tgt_mask) # [B, seq_output, vocab_size]
             loss: torch.Tensor = nn.functional.cross_entropy(
-                predicted.contiguous().view(-1, self.vocab_size),
-                captions_expected.contiguous().view(-1),
-                weight=self.class_weights.to(predicted.device),
+                predicted.contiguous().view(-1, self.vocab_size), # [B*seq_output, vocab_size]
+                captions_expected.contiguous().view(-1), # [B*seq_output]
+                weight=self.class_weights.to(predicted.device), # Ignore <PAD> and <UNK> tokens
             )
             self.log('test_CE', loss, prog_bar=True, logger=None)
             return loss
@@ -115,8 +116,8 @@ class Model(L.LightningModule):
         }
     
     def forward(self, imgs, captions, tgt_mask) -> torch.Tensor:
-        features = self.encoder(imgs)
-        predicted = self.decoder(src=features, tgt=captions, tgt_mask=tgt_mask)
+        features = self.encoder(imgs) # [B, H*W, d_model]
+        predicted = self.decoder(src=features, tgt=captions, tgt_mask=tgt_mask) # [B, seq_output, vocab_size]
         return predicted
     
     def predict(self, image: torch.Tensor, max_length=50) -> str:
@@ -139,15 +140,14 @@ class Model(L.LightningModule):
             tgt_mask = self.get_tgt_mask(y_input.size(1)).to(device)
             with torch.no_grad():
                 pred: torch.Tensor = self(image, y_input, tgt_mask)
-            next_item = pred.argmax(-1)[0, -1].item()
-            next_item = torch.tensor([[next_item]], device=device)
-
-            # Concatenate previous input with predicted best word
-            y_input = torch.cat((y_input, next_item), dim=1)
-
-            # Stop if model predicts end of sentence
-            if next_item.view(-1).item() == self.eos_idx:
-                break
+                next_item = pred.argmax(-1)[0, -1].item()
+                next_item = torch.tensor([[next_item]], device=device)
+                # Concatenate previous input with predicted best word
+                y_input = torch.cat((y_input, next_item), dim=1)
+                # Stop if model predicts end of sentence
+                if next_item.view(-1).item() == self.eos_idx:
+                    break
+                
         result = y_input.view(-1).tolist()[1:-1]
         return ' '.join([self.vocab.idx2word[idx] for idx in result])
     
