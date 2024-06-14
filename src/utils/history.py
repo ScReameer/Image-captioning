@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
@@ -68,6 +69,8 @@ class History:
             yaxis=dict(exponentformat='power')
         )
         # Show and save
+        if not os.path.exists('imgs/history'):
+            os.makedirs('imgs/history')
         metrics_fig.write_image('imgs/history/metrics.png')
         metrics_fig.show()
         lr_fig.write_image('imgs/history/lr.png')
