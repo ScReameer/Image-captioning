@@ -9,9 +9,9 @@
 ## Overview
 Model is trained on [Flickr30k](https://www.kaggle.com/datasets/hsankesara/flickr-image-dataset) dataset.
 
-As an **encoder** used [ResNet-152](https://pytorch.org/vision/main/models/generated/torchvision.models.resnet152.html) pretrained model.
+* As an **encoder** used [ResNet-152](https://pytorch.org/vision/main/models/generated/torchvision.models.resnet152.html) pretrained model.
 
-As a **decoder** used [Transformer](https://pytorch.org/docs/stable/generated/torch.nn.Transformer.html#torch.nn.Transformer) module.
+* As a **decoder** used [Transformer](https://pytorch.org/docs/stable/generated/torch.nn.Transformer.html#torch.nn.Transformer) module.
 
 Model have `53.1 M` trainable parameters and `58.1 M` non-trainable parameters with total number of parameters `111.2 M`. You can change number of trainable parameters by changing `d_model` in `Model` class.
 
@@ -30,6 +30,8 @@ vocab_size: 7736
 ![](imgs/history/lr.png)
 
 You can achieve better results by changing hyperparameters, especially `d_model` and `num_heads`, but it will take more time to train.
+
+Also you can look at [128_dmodel_training.ipynb](extra_research/128_dmodel_training.ipynb) and [128_dmodel_inference.ipynb](extra_research/128_dmodel_inference.ipynb) to compare affect of `d_model` and `num_heads` on results with same training.
 
 ## How to use
 1. To train model on your own dataset follow this notebook: [<b>training.ipynb</b>](training.ipynb)
