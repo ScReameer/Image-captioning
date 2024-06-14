@@ -1,6 +1,6 @@
 from ..data_processing.vocabulary import Vocabulary
-from .decoder import Decoder
-from .encoder import Encoder
+from .modules.decoder import Decoder
+from .modules.encoder import Encoder
 
 import torch
 import lightning as L
@@ -51,8 +51,8 @@ class Model(L.LightningModule):
             dropout_rate=dropout_rate,
             vocab_size=self.vocab_size
         )
-        # Class weights for loss function
-        self.class_weights = torch.ones((self.vocab_size, ), device=self.device)
+        # Class weights for loss function in validation/test step
+        self.class_weights = torch.ones((self.vocab_size, ), device=self.device) # [1, 1, ..., 1]
         self.class_weights[self.pad_idx] = torch.tensor(.0)
         self.class_weights[self.unk_idx] = torch.tensor(.0)
         

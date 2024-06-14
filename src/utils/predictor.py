@@ -1,4 +1,4 @@
-from ..net_modules.model import Model
+from ..net.model import Model
 
 import torch
 import torchvision.transforms as T
