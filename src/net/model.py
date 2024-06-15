@@ -16,15 +16,15 @@ class Model(L.LightningModule):
         gamma: float,
         dropout_rate=0.1
     ) -> None:
-        """Model class for image captioning task
+        """Encoder-decoder model with Transformer for image captioning task
 
         Args:
             `vocab` (`Vocabulary`): vocabulary instance of `src.data_processing.vocabulary.Vocabulary`
-            `d_model` (`int`): text embedding size and also hidden size of Transformer
-            `num_heads` (`int`): heads of Transformer, must be divisible by `d_model` without remainder
-            `lr_start` (`float`): starting learning rate
+            `d_model` (`int`): image feature map size, text embedding size and also hidden size of Transformer
+            `num_heads` (`int`): heads of Transformer, `d_model` must be divisible by `num_heads` without remainder
+            `lr_start` (`float`): initial learning rate
             `gamma` (`float`): gamma for exponential learning rate scheduler
-            `dropout_rate` (`float`, optional): droupout regularization. Defaults to 0.1.
+            `dropout_rate` (`float`, optional): droupout regularization. Defaults to `0.1`.
         """
         super().__init__()
         self.vocab = vocab
