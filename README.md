@@ -29,7 +29,8 @@ lr_start: 5.0e-05
 num_heads: 8
 vocab_size: 7736
 ```
-![](imgs/history/metrics.png)
+![](imgs/history/metrics.png)  
+![](imgs/history/lr.png)
 
 You can achieve better results by changing hyperparameters, especially `d_model` and `num_heads`, but it will take more time to train.
 
