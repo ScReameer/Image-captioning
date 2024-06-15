@@ -3,6 +3,7 @@
   <summary><b>Example</b> (clickable spoiler)</summary>
 
   ![](./imgs/examples/example.jpg)
+  ![](./imgs/examples/example_2.jpg)
   
 </details>
 
