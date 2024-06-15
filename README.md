@@ -45,4 +45,6 @@ You can also look at [<b>extra_research</b>](extra_research) to see the result o
 ## Reference
 [<b><i>Flickr30k</i> dataset</b>](https://www.kaggle.com/datasets/hsankesara/flickr-image-dataset)
 
+[<b>Attention is All You Need</b>](https://arxiv.org/abs/1706.03762)
+
 [<b>A detailed guide to <i>PyTorch</i>’s `nn.Transformer()` module</b>](https://towardsdatascience.com/a-detailed-guide-to-pytorchs-nn-transformer-module-c80afbc9ffb1)
