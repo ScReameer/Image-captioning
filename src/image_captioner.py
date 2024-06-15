@@ -22,7 +22,7 @@ class ImageCaptioner:
             self.vocab = joblib.load(vocab_path)
         else:
             if captions_path:
-                vocab_df = pd.read_csv(checkpoint_path, sep='|')[' comment']
+                vocab_df = pd.read_csv(captions_path, sep='|')[' comment']
                 self.vocab = Vocabulary(vocab_df)
                 os.mkdir('vocab')
                 joblib.dump(self.vocab, vocab_path)
