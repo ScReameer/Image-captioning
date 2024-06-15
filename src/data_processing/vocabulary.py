@@ -39,15 +39,16 @@ class Vocabulary:
                     start_idx += 1
     
     def numericalize(self, text: str):
-        """Processing raw text into one-hot encoded tensor
+        """Processing raw text into tensor
 
         Args:
             `text` (`str`): raw string of sentence
 
         Returns:
-            `output` (`torch.Tensor`): one-hot encoded text
+            `output` (`torch.Tensor`): tensor representation of sentence with shape `[sequence_length]`
         """
         tokenized_text = self.tokenizer(text)
+        # <SOS> ... <EOS>
         output = [self.word2idx['<SOS>']] + [
             self.word2idx[token] if token in self.word2idx else self.word2idx['<UNK>']
             for token in tokenized_text
